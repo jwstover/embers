@@ -1,0 +1,65 @@
+@moduledoc false
+
+alias Embers.Paddle
+alias <%= inspect(@module_prefix) %>.Paddle.Subscription
+alias <%= inspect(@module_prefix) %>.Repo
+
+def get_subscription(id) do
+  Repo.get(Subscription, id)
+end
+
+def get_subscription_price_id do
+  Application.get_env(:<%= @app %>, :paddle_subscription)[:price_id]
+end
+
+def get_subscription_price do
+  get_subscription_price_id()
+  |> Paddle.get_price()
+end
+
+def create_subscription(attrs) do
+  %Subscription{}
+  |> Subscription.changeset(attrs)
+  |> Repo.insert()
+end
+
+def update_subscription(subscription, attrs) do
+  subscription
+  |> Subscription.changeset(attrs)
+  |> Repo.update()
+  |> case do
+    {:ok, sub} ->
+      {:ok, sub}
+
+    err ->
+      err
+  end
+end
+
+def refresh_subscription(subscription_id) do
+  with {:ok, attrs} <- Paddle.get_subscription(subscription_id),
+       sub <- get_subscription(attrs["id"]) do
+    update_subscription(sub, attrs)
+  end
+end
+
+def load_subscriptions do
+  {:ok, subs} = Paddle.list_subscriptions()
+
+  Enum.each(subs, fn sub_attrs ->
+    case get_subscription(sub_attrs["id"]) do
+      nil -> create_subscription(sub_attrs)
+      sub -> update_subscription(sub, sub_attrs)
+    end
+  end)
+end
+
+def active?(nil), do: false
+
+def active?(subscription) do
+  now = DateTime.utc_now()
+
+  subscription.status == "active" &&
+    DateTime.compare(subscription.current_billing_period.starts_at, now) != :gt &&
+    DateTime.compare(subscription.current_billing_period.ends_at, now) != :lt
+end

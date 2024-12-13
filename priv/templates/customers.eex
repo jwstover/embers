@@ -1,0 +1,69 @@
+@moduledoc false
+
+require Logger
+
+alias Embers.Paddle
+
+alias <%= inspect(@module_prefix) %>.Accounts
+alias <%= inspect(@module_prefix) %>.Accounts.User
+alias <%= inspect(@module_prefix) %>.Paddle.Customer
+alias <%= inspect(@module_prefix) %>.Repo
+
+def get_customer(customer_id) do
+  Repo.get(Customer, customer_id)
+end
+
+def get_customer_for_user(%User{id: user_id}) do
+  Repo.get_by(Customer, user_id: user_id)
+end
+
+def get_or_create_customer_for_user(%User{id: user_id} = user) do
+  Repo.get_by(Customer, user_id: user_id)
+  |> case do
+    nil -> create_customer_for_user(user)
+    customer -> {:ok, customer}
+  end
+end
+
+def create_customer(attrs) do
+  Accounts.get_user_by_email(attrs["email"])
+  |> case do
+    nil ->
+      Logger.error("Failed to create customer. Could not find user with email #{attrs["email"]}")
+
+      {:error, :invalid_user_email}
+
+    user ->
+      create_customer(attrs, user.id)
+  end
+end
+
+def create_customer(attrs, user_id) do
+  %Customer{}
+  |> Customer.changeset(Map.put(attrs, "user_id", user_id))
+  |> Repo.insert()
+end
+
+def create_customer_for_user(%User{email: email} = user) do
+  Paddle.list_customers(email: email)
+  |> case do
+    {:ok, []} ->
+      Paddle.create_customer(email)
+
+    {:ok, [customer]} ->
+      {:ok, customer}
+  end
+  |> case do
+    {:ok, customer} ->
+      create_customer(customer, user.id)
+
+    err ->
+      err
+  end
+end
+
+def update_customer(%Customer{} = customer, attrs) do
+  customer
+  |> Customer.changeset(attrs)
+  |> Repo.update()
+end

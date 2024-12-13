@@ -1,0 +1,92 @@
+@moduledoc false
+
+use Ecto.Schema
+
+import Ecto.Changeset
+
+alias Ecto.Changeset
+alias <%= inspect(@customer_module) %>
+
+@primary_key {:id, :string, []}
+@derive {Phoenix.Param, key: :id}
+schema "paddle_subscriptions" do
+  field :status, :string
+  field :started_at, :utc_datetime
+  field :paused_at, :utc_datetime
+  field :created_at, :utc_datetime
+  field :updated_at, :utc_datetime
+  field :canceled_at, :utc_datetime
+  field :next_billed_at, :utc_datetime
+  field :first_billed_at, :utc_datetime
+  field :transaction_id, :string
+
+  belongs_to :customer, Customer, type: :string
+
+  embeds_many :items, Item, on_replace: :delete do
+    field :price_id, :string
+    field :product_id, :string
+    field :quantity, :integer
+  end
+
+  embeds_one :current_billing_period, BillingPeriod, on_replace: :update do
+    field :starts_at, :utc_datetime
+    field :ends_at, :utc_datetime
+  end
+end
+
+@doc false
+def changeset(subscription, attrs) do
+  subscription
+  |> cast(attrs, [
+    :id,
+    :status,
+    :paused_at,
+    :created_at,
+    :started_at,
+    :updated_at,
+    :canceled_at,
+    :customer_id,
+    :next_billed_at,
+    :first_billed_at,
+    :transaction_id
+  ])
+  |> validate_required([
+    :id,
+    :status,
+    :created_at,
+    :customer_id,
+    :updated_at,
+    :first_billed_at
+  ])
+  |> cast_embed(:items, with: &item_changeset/2)
+  |> cast_embed(:current_billing_period, with: &billing_period_changeset/2)
+  |> foreign_key_constraint(:customer_id)
+end
+
+def item_changeset(item, attrs \\ %{}) do
+  item
+  |> cast(attrs, [:price_id, :product_id, :quantity])
+  |> set_price_id()
+  |> set_product_id()
+  |> validate_required([:price_id, :product_id, :quantity])
+end
+
+def billing_period_changeset(billing_period, attrs \\ %{}) do
+  billing_period
+  |> cast(attrs, [:starts_at, :ends_at])
+  |> validate_required([:starts_at, :ends_at])
+end
+
+defp set_price_id(%Changeset{} = changeset) do
+  case changeset.params["price"]["id"] do
+    price_id when is_binary(price_id) -> put_change(changeset, :price_id, price_id)
+    _ -> changeset
+  end
+end
+
+defp set_product_id(%Changeset{} = changeset) do
+  case changeset.params["product"]["id"] do
+    product_id when is_binary(product_id) -> put_change(changeset, :product_id, product_id)
+    _ -> changeset
+  end
+end

@@ -1,0 +1,42 @@
+@moduledoc false
+
+use <%= inspect(@web_module) %>, :controller
+
+require Logger
+
+alias Embers.Paddle
+
+alias <%= inspect(@module_prefix) %>.Process.Worker.PaddleWebhookWorker
+
+alias <%= inspect(@web_module) %>.Plugs.CachingBodyReader
+
+def handle_hook(conn, params) do
+  signing_key = Paddle.config()[:webhook_signing_key]
+
+  with :ok <- validate_event(conn, "paddle-signature", signing_key),
+       {:ok, _job} <- PaddleWebhookWorker.new(params) |> Oban.insert() do
+    send_resp(conn, 200, "Ok")
+  else
+    err ->
+      Logger.error("Failed webhook: #{inspect(err)}")
+      send_resp(conn, 400, "")
+  end
+end
+
+def validate_event(conn, signature_header, signing_key) do
+  with [signature] <- Plug.Conn.get_req_header(conn, signature_header),
+       [t, s] <- String.split(signature, ";"),
+       [_, timestamp] <- String.split(t, "="),
+       [_, sha] <- String.split(s, "=") do
+    payload = timestamp <> ":" <> CachingBodyReader.get_raw_body(conn)
+
+    verify_signature =
+      :crypto.mac(:hmac, :sha256, signing_key, payload)
+      |> Base.encode16(case: :lower)
+
+    (Plug.Crypto.secure_compare(sha, verify_signature) && :ok) || :error
+  else
+    err ->
+      {:error, err}
+  end
+end

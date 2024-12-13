@@ -17,6 +17,14 @@ defmodule Embers.Paddle do
     config()[:api_key]
   end
 
+  def client_token do
+    config()[:client_token]
+  end
+
+  def environment do
+    config()[:environment]
+  end
+
   def request(method, path, options \\ []) do
     url = Path.join(endpoint(), path)
     auth_header = {"Authorization", "Bearer #{api_key()}"}
@@ -28,14 +36,18 @@ defmodule Embers.Paddle do
 
   defp handle_resp(req_response, success_code, msg) do
     case req_response do
-      {:ok, %{status: ^success_code, body: body}} ->
-        {:ok, body}
+      {:ok, %{status: ^success_code, body: %{"data" => data}}} ->
+        {:ok, data}
 
       {_, err} ->
         msg && Logger.error("#{msg}: #{inspect(err)}")
         {:error, err}
     end
   end
+
+#╭──────────────────────────────────────────────────────────────────────────────╮
+#│                                  CUSTOMERS                                   │
+#╰──────────────────────────────────────────────────────────────────────────────╯
 
   def create_customer(email) do
     body = %{email: email} |> Jason.encode!()
@@ -55,6 +67,10 @@ defmodule Embers.Paddle do
     |> handle_resp(200, "Failed retrieving paddle customers")
   end
 
+#╭──────────────────────────────────────────────────────────────────────────────╮
+#│                                   PRODUCTS                                   │
+#╰──────────────────────────────────────────────────────────────────────────────╯
+
   def list_products(opts \\ []) do
     query_params = URI.encode_query(opts)
 
@@ -63,6 +79,10 @@ defmodule Embers.Paddle do
     request(:get, path)
     |> handle_resp(200, "Failed retrieving paddle products")
   end
+
+#╭──────────────────────────────────────────────────────────────────────────────╮
+#│                                    PRICES                                    │
+#╰──────────────────────────────────────────────────────────────────────────────╯
 
   def list_prices(opts \\ []) do
     query_params = URI.encode_query(opts)
@@ -78,6 +98,41 @@ defmodule Embers.Paddle do
 
     request(:get, path)
     |> handle_resp(200, "Failed retrieving paddle price")
+  end
+
+#╭──────────────────────────────────────────────────────────────────────────────╮
+#│                                SUBSCRIPTIONS                                 │
+#╰──────────────────────────────────────────────────────────────────────────────╯
+
+  def get_subscription(subscription_id) do
+    request(:get, "/subscriptions/#{subscription_id}")
+    |> handle_resp(200, "Failed to get subscription")
+  end
+
+  def list_subscriptions(params \\ %{}) do
+    query = URI.encode_query(params)
+
+    request(:get, "/subscriptions?#{query}")
+    |> handle_resp(200, "Failed to list subscriptions")
+  end
+
+  def maybe_reinstate_subscription(subscription) do
+    get_subscription(subscription.id)
+    |> case do
+      {:ok, %{"status" => "active", "scheduled_change" => %{"action" => "cancel"}}} ->
+        {:ok, _} = update_subscription(subscription.id, %{scheduled_change: nil})
+        :ok
+
+      _ ->
+        :ok
+    end
+  end
+
+  def update_subscription(subscription_id, params) do
+    body = params |> Jason.encode!()
+
+    request(:patch, "/subscriptions/#{subscription_id}", body: body)
+    |> handle_resp(200, "Failed to update subscription")
   end
 
   def cancel_subscription(subscription_id) do

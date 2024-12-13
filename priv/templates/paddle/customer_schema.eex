@@ -1,0 +1,54 @@
+@moduledoc false
+
+use Ecto.Schema
+
+import Ecto.Changeset
+
+alias <%= inspect(@user_module) %>
+alias <%= inspect(@subscription_module) %>
+
+@primary_key {:id, :string, []}
+@derive {Phoenix.Param, key: :id}
+schema "paddle_customers" do
+  field :name, :string
+  field :status, :string
+  field :import_meta, :map
+  field :locale, :string
+  field :email, :string
+  field :created_at, :utc_datetime
+  field :updated_at, :utc_datetime
+  field :marketing_consent, :boolean, default: false
+  field :custom_data, :map
+
+  has_one :subscription, Subscription, where: [status: "active"]
+
+  belongs_to :user, User
+end
+
+@doc false
+def changeset(customer, attrs) do
+  customer
+  |> cast(attrs, [
+    :id,
+    :name,
+    :email,
+    :locale,
+    :status,
+    :created_at,
+    :updated_at,
+    :marketing_consent,
+    :custom_data,
+    :import_meta,
+    :user_id
+  ])
+  |> validate_required([
+    :id,
+    :email,
+    :locale,
+    :status,
+    :created_at,
+    :updated_at,
+    :marketing_consent,
+    :user_id
+  ])
+end

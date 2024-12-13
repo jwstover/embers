@@ -5,7 +5,7 @@ defmodule Embers.MixProject do
     [
       app: :embers,
       version: "0.1.0",
-      elixir: "~> 1.16",
+      elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -23,7 +23,8 @@ defmodule Embers.MixProject do
     [
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
-      {:igniter, "~> 0.4"}
+      {:igniter, "~> 0.4"},
+      {:ecto_sql, "~> 3.10"}
     ]
   end
 end
