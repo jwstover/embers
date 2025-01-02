@@ -1,0 +1,64 @@
+@moduledoc false
+
+use Oban.Worker, queue: :webhook
+
+require Logger
+
+alias <%= inspect(@module_prefix) %>.Customers
+alias <%= inspect(@module_prefix) %>.Subscriptions
+
+@impl Oban.Worker
+def perform(%Oban.Job{args: %{"event_type" => "customer" <> _} = args}) do
+  attrs = Map.get(args, "data")
+
+  Customers.get_customer(attrs["id"])
+  |> case do
+    nil -> Customers.create_customer(attrs)
+    customer -> maybe_update_customer(customer, attrs)
+  end
+end
+
+def perform(%Oban.Job{args: %{"event_type" => "subscription" <> _} = args}) do
+  attrs =
+    Map.get(args, "data")
+    |> Map.update("items", [], fn items ->
+      Enum.map(items, fn item ->
+        %{
+          "price_id" => item["price"]["id"],
+          "product_id" => item["product"]["id"],
+          "quantity" => item["quantity"]
+        }
+      end)
+    end)
+
+  Subscriptions.get_subscription(attrs["id"])
+  |> case do
+    nil ->
+      Subscriptions.create_subscription(attrs)
+
+    subscription ->
+      maybe_update_subscription(subscription, attrs)
+  end
+end
+
+def perform(_), do: :ok
+
+defp maybe_update_customer(%{updated_at: c_up} = customer, %{"updated_at" => a_up} = attrs)
+     when c_up < a_up do
+  Customers.update_customer(customer, attrs)
+end
+
+defp maybe_update_customer(customer, _attrs), do: {:ok, customer}
+
+defp maybe_update_subscription(
+       %{updated_at: c_up} = subscription,
+       %{"updated_at" => a_up} = attrs
+     )
+     when c_up < a_up do
+  Subscriptions.update_subscription(subscription, attrs)
+end
+
+defp maybe_update_subscription(
+       %{updated_at: c_up} = subscription,
+       %{"updated_at" => a_up} = attrs
+     ), do: {:ok, subscription}

@@ -6,7 +6,7 @@ require Logger
 
 alias Embers.Paddle
 
-alias <%= inspect(@module_prefix) %>.Process.Worker.PaddleWebhookWorker
+alias <%= inspect(@module_prefix) %>.Workers.PaddleWebhookWorker
 
 alias <%= inspect(@web_module) %>.Plugs.CachingBodyReader
 

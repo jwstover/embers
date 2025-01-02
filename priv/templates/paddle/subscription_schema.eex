@@ -7,6 +7,8 @@ import Ecto.Changeset
 alias Ecto.Changeset
 alias <%= inspect(@customer_module) %>
 
+@active_statuses ["active", "trialing"]
+
 @primary_key {:id, :string, []}
 @derive {Phoenix.Param, key: :id}
 schema "paddle_subscriptions" do
@@ -76,6 +78,8 @@ def billing_period_changeset(billing_period, attrs \\ %{}) do
   |> cast(attrs, [:starts_at, :ends_at])
   |> validate_required([:starts_at, :ends_at])
 end
+
+def active_statuses, do: @active_statuses
 
 defp set_price_id(%Changeset{} = changeset) do
   case changeset.params["price"]["id"] do

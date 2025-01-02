@@ -119,7 +119,7 @@ defmodule Embers.Paddle do
   def maybe_reinstate_subscription(subscription) do
     get_subscription(subscription.id)
     |> case do
-      {:ok, %{"status" => "active", "scheduled_change" => %{"action" => "cancel"}}} ->
+      {:ok, %{"status" => status, "scheduled_change" => %{"action" => "cancel"}}} when status in ["active", "trialing"] ->
         {:ok, _} = update_subscription(subscription.id, %{scheduled_change: nil})
         :ok
 

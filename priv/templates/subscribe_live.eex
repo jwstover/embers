@@ -9,6 +9,7 @@ use <%= inspect(@web_module) %>, :live_view
 alias Embers.Paddle
 
 alias <%= inspect(@module_prefix) %>.Customers
+alias <%= inspect(@module_prefix) %>.Paddle.Subscription
 alias <%= inspect(@module_prefix) %>.Subscriptions
 
 def mount(%{"price_id" => price_id}, _session, socket) do
@@ -22,7 +23,7 @@ def mount(%{"price_id" => price_id}, _session, socket) do
        {:ok, customer} <-
          Customers.get_or_create_customer_for_user(user),
        {:ok, []} <-
-         Paddle.list_subscriptions(customer_id: customer.id, status: "active") do
+         Paddle.list_subscriptions(customer_id: customer.id, status: "active,trialing") do
     items = [%{priceId: price_id, quantity: 1}]
 
     params = %{
@@ -37,7 +38,7 @@ def mount(%{"price_id" => price_id}, _session, socket) do
       # User is not logged in
       {:ok, socket |> push_navigate(to: ~p"/users/log_in?return_to=/pricing")}
 
-    {:ok, [%{"status" => "active"} = subscription]} ->
+    {:ok, [%{"status" => status} = subscription]} when status in Subscription.active_statuses() ->
       # If we got here it means that the user had an active subscription that we don't know about.
       # Add it to the DB
 

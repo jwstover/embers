@@ -20,7 +20,7 @@ schema "paddle_customers" do
   field :marketing_consent, :boolean, default: false
   field :custom_data, :map
 
-  has_one :subscription, Subscription, where: [status: "active"]
+  has_one :subscription, Subscription, where: [status: {:in, ["active", "trialing"]}]
 
   belongs_to :user, User
 end

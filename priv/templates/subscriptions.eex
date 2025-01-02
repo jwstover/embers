@@ -59,7 +59,7 @@ def active?(nil), do: false
 def active?(subscription) do
   now = DateTime.utc_now()
 
-  subscription.status == "active" &&
+  subscription.status in Subscription.active_statuses() &&
     DateTime.compare(subscription.current_billing_period.starts_at, now) != :gt &&
     DateTime.compare(subscription.current_billing_period.ends_at, now) != :lt
 end

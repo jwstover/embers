@@ -333,16 +333,29 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
       |> Path.join("priv/templates/paddle_subscribers/webhooks/paddle_webhook_controller.eex")
       |> EEx.eval_file(assigns: [module_prefix: module_prefix, web_module: web_module])
 
+    worker_content =
+      Application.app_dir(:embers)
+      |> Path.join("priv/templates/paddle_subscribers/workers/paddle_webhook_worker.eex")
+      |> EEx.eval_file(assigns: [module_prefix: module_prefix])
+
+    webhook_controller_path =
+      Path.join([web_path(igniter), "controllers", "webhooks", "paddle_webhook_controller.ex"])
+
     igniter =
       igniter
       |> Igniter.Project.Module.create_module(
         :"#{web_module}.Plugs.CachingBodyReader",
         caching_body_reader_content
       )
+      |> Igniter.Project.IgniterConfig.dont_move_file_pattern(webhook_controller_path)
       |> Igniter.Project.Module.create_module(
         :"#{web_module}.Webhooks.PaddleWebhookController",
         webhook_content,
-        path: Path.join([web_path(igniter), "controllers", "webhooks", "paddle_webhook_controller.ex"])
+        path: webhook_controller_path
+      )
+      |> Igniter.Project.Module.create_module(
+        Igniter.Project.Module.module_name(igniter, Workers.PaddleWebhookWorker),
+        worker_content
       )
       |> Igniter.update_elixir_file(endpoint_path, fn zipper ->
         zipper
