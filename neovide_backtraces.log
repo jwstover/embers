@@ -1,4 +1,4 @@
-2024-12-05 23:30:31 - Neovide panicked with the message 'called `Result::unwrap()` on an `Err` value: Connection(IoError(Custom { kind: Other, error: UnknownError }))'. (File: /home/jwstover/.cargo/registry/src/index.crates.io-6f17d22bba15001f/winit-0.29.10/src/platform_impl/linux/x11/window.rs; Line: 1316, Column: 14)
+2025-01-09 00:23:09 - Neovide panicked with the message 'called `Result::unwrap()` on an `Err` value: Connection(IoError(Custom { kind: Other, error: UnknownError }))'. (File: /home/jwstover/.cargo/registry/src/index.crates.io-6f17d22bba15001f/winit-0.29.10/src/platform_impl/linux/x11/window.rs; Line: 1316, Column: 14)
    0: <unknown>
    1: <unknown>
    2: <unknown>
@@ -18,7 +18,7 @@
   16: __libc_start_main
   17: <unknown>
 
-2024-12-06 17:56:54 - Neovide panicked with the message 'called `Result::unwrap()` on an `Err` value: Connection(IoError(Custom { kind: Other, error: UnknownError }))'. (File: /home/jwstover/.cargo/registry/src/index.crates.io-6f17d22bba15001f/winit-0.29.10/src/platform_impl/linux/x11/window.rs; Line: 1316, Column: 14)
+2025-01-11 04:38:49 - Neovide panicked with the message 'called `Result::unwrap()` on an `Err` value: Connection(IoError(Custom { kind: Other, error: UnknownError }))'. (File: /home/jwstover/.cargo/registry/src/index.crates.io-6f17d22bba15001f/winit-0.29.10/src/platform_impl/linux/x11/window.rs; Line: 1316, Column: 14)
    0: <unknown>
    1: <unknown>
    2: <unknown>

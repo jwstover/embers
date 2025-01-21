@@ -58,6 +58,14 @@ defmodule Embers.Paddle do
     |> handle_resp(201, "Failed creating new customer")
   end
 
+  def get_portal_session_url(customer_id, subscription_ids \\ []) do
+    body = %{subscription_ids: subscription_ids} |> Jason.encode!()
+
+    path = Path.join(["/customers", customer_id, "portal-sessions"])
+    request(:post, path, body: body)
+    |> handle_resp(201, "Failed to get customer portal session link")
+  end
+
   def list_customers(opts \\ []) do
     query_params = URI.encode_query(opts)
 

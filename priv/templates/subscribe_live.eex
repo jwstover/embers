@@ -9,7 +9,6 @@ use <%= inspect(@web_module) %>, :live_view
 alias Embers.Paddle
 
 alias <%= inspect(@module_prefix) %>.Customers
-alias <%= inspect(@module_prefix) %>.Paddle.Subscription
 alias <%= inspect(@module_prefix) %>.Subscriptions
 
 def mount(%{"price_id" => price_id}, _session, socket) do
@@ -19,11 +18,9 @@ def mount(%{"price_id" => price_id}, _session, socket) do
     |> assign(:paddle_client_token, Paddle.client_token())
     |> assign(:paddle_env, Paddle.environment())
 
-  with user when not is_nil(user) <- socket.assigns.current_user,
-       {:ok, customer} <-
-         Customers.get_or_create_customer_for_user(user),
-       {:ok, []} <-
-         Paddle.list_subscriptions(customer_id: customer.id, status: "active,trialing") do
+  with {:ok, user} <- ensure_current_user(socket),
+       {:ok, customer} <- Customers.get_or_create_customer_for_user(user),
+       :ok <- ensure_no_active_subscription(socket, customer) do
     items = [%{priceId: price_id, quantity: 1}]
 
     params = %{
@@ -33,24 +30,33 @@ def mount(%{"price_id" => price_id}, _session, socket) do
     }
 
     {:ok, socket |> push_event("checkout", params)}
-  else
-    nil ->
-      # User is not logged in
-      {:ok, socket |> push_navigate(to: ~p"/users/log_in?return_to=/pricing")}
+  end
+end
 
-    {:ok, [%{"status" => status} = subscription]} when status in Subscription.active_statuses() ->
+defp ensure_current_user(%{assigns: %{current_user: user}} = socket) do
+  if !is_nil(user) do
+    {:ok, user}
+  else
+    # User is not logged in
+    {:ok, socket |> push_navigate(to: ~p"/users/log_in?return_to=/pricing")}
+  end
+end
+
+defp ensure_no_active_subscription(socket, customer) do
+  case Paddle.list_subscriptions(customer_id: customer.id, status: "active,trialing") do
+    {:ok, []} ->
+      :ok
+
+    {:ok, subscription} ->
       # If we got here it means that the user had an active subscription that we don't know about.
       # Add it to the DB
 
-      Subscriptions.create_subscription(subscription)
+      {:ok, _sub} = Subscriptions.create_subscription(subscription)
 
       {:ok,
        socket
        |> put_flash(:info, "You already have an active subscription")
        |> push_navigate(to: ~p"/")}
-
-    _ ->
-      {:ok, put_flash(socket, :error, "Something went wrong. Please try again later.")}
   end
 end
 

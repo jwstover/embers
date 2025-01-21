@@ -106,6 +106,15 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
        System.get_env("PADDLE_CLIENT_TOKEN")
        """)}
     )
+    |> Igniter.Project.Config.configure(
+      "runtime.exs",
+      :embers,
+      [Paddle, :webhook_signing_key],
+      {:code,
+       Sourceror.parse_string!("""
+       System.get_env("PADDLE_WEBHOOK_SIGNING_KEY")
+       """)}
+    )
   end
 
   defp add_migrations(igniter) do
@@ -190,8 +199,8 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
       "/",
       """
       live_session :pricing,
-        on_mount: [{#{web_module}.UserAuth, :mount_current_user}] do
-        live "/pricing", Live.PricingLive, :index
+        on_mount: [{#{inspect(web_module)}.UserAuth, :mount_current_user}] do
+        live "/pricing", PricingLive, :index
       end
       """,
       arg2: web_module,
@@ -201,8 +210,8 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
       "/subscribe",
       """
       live_session :subscribe,
-        on_mount: [{Elixir.EmbersLiveViewWeb.UserAuth, :mount_current_user}] do
-        live "/:price_id", Live.SubscribeLive, :subscribe
+        on_mount: [{#{inspect(web_module)}.UserAuth, :mount_current_user}] do
+        live "/:price_id", SubscribeLive, :subscribe
       end
       """,
       arg2: web_module,
@@ -311,9 +320,10 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
   end
 
   defp add_dep(igniter, name, version) do
-    case Igniter.Project.Deps.get_dependency_declaration(igniter, name) do
-      nil -> Igniter.Project.Deps.add_dep(igniter, {name, version}, append?: true)
-      _ -> Igniter
+    if Igniter.Project.Deps.has_dep?(igniter, name) do
+      igniter
+    else
+      Igniter.Project.Deps.add_dep(igniter, {name, version}, append?: true)
     end
   end
 
@@ -343,7 +353,7 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
 
     igniter =
       igniter
-      |> Igniter.Project.Module.create_module(
+      |> create_module_if_not_exists(
         :"#{web_module}.Plugs.CachingBodyReader",
         caching_body_reader_content
       )
@@ -356,6 +366,14 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
       |> Igniter.Project.Module.create_module(
         Igniter.Project.Module.module_name(igniter, Workers.PaddleWebhookWorker),
         worker_content
+      )
+      |> Igniter.Libs.Phoenix.append_to_scope(
+        "/webhooks",
+        """
+        post "/paddle", PaddleWebhookController, :handle_hook
+        """,
+        arg2: "#{inspect(web_module)}.Webhooks",
+        with_pipelines: [:api]
       )
       |> Igniter.update_elixir_file(endpoint_path, fn zipper ->
         zipper
@@ -395,6 +413,17 @@ defmodule Mix.Tasks.Embers.AddPaddleSubscribers do
 
         body_reader: {#{inspect(web_module)}.Plugs.CachingBodyReader, :ready_body, []}
       """)
+    end
+  end
+
+  defp create_module_if_not_exists(igniter, module, content, opts \\ []) do
+    {exists?, igniter} = Igniter.Project.Module.module_exists(igniter, module)
+
+    if exists? do
+      igniter
+      |> Igniter.add_warning("Did not create module #{module}. Module already exists.")
+    else
+      Igniter.Project.Module.create_module(igniter, module, content, opts)
     end
   end
 
